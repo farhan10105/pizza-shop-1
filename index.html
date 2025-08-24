@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title id="siteTitle">Fiesta Pizza</title>
+<style>
+  body{font-family:Arial;margin:0;background:#111;color:#fff;}
+  header,footer{background:#222;padding:10px;text-align:center;}
+  .cta{background:#ff3d3d;padding:10px;border:none;color:#fff;border-radius:6px;cursor:pointer;margin-top:10px;}
+  .admin-btn{
+    position:fixed;bottom:20px;right:20px;background:#ff3d3d;color:#fff;
+    border:none;padding:12px;border-radius:50%;cursor:pointer;font-weight:bold;font-size:16px;
+  }
+  .modal{
+    position:fixed;top:0;left:0;width:100%;height:100%;background:#000a;display:none;align-items:center;justify-content:center;
+  }
+  .modal-content{
+    background:#222;padding:20px;border-radius:8px;width:95%;max-width:500px;max-height:90vh;overflow-y:auto;
+  }
+  input,textarea{width:100%;padding:8px;margin:6px 0;background:#333;color:#fff;border:none;border-radius:4px;}
+  .dashboard{display:none;}
+  .menu-grid{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:10px;
+  }
+  .menu-card{
+    background:#222;border-radius:8px;overflow:hidden;text-align:center;padding:10px;
+  }
+  .menu-card img{width:100%;height:120px;object-fit:cover;border-bottom:1px solid #333;}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="websiteName">Fiesta Pizza</h1>
+  <p id="phoneNo">📞 0327 0553470</p>
+  <p id="address">📍 Your City</p>
+</header>
+
+<section>
+  <h2 id="menuTitle" style="text-align:center;margin-top:10px;">Menu</h2>
+  <div id="menuGrid" class="menu-grid"></div>
+</section>
+
+<footer>
+  <p>&copy; <span id="year"></span> Fiesta Pizza</p>
+</footer>
+
+<!-- Admin Button -->
+<button class="admin-btn" id="adminBtn">⚙️</button>
+
+<!-- Admin Modal -->
+<div class="modal" id="adminModal">
+  <div class="modal-content">
+    <div class="login">
+      <h3>Admin Login</h3>
+      <input type="password" id="adminPass" placeholder="Enter Password">
+      <button class="cta" id="loginBtn">Login</button>
+    </div>
+    <div class="dashboard">
+      <h3>Admin Panel</h3>
+      <label>Website Name</label>
+      <input type="text" id="siteNameInput">
+      <label>Phone Number</label>
+      <input type="text" id="phoneInput">
+      <label>Address</label>
+      <input type="text" id="addressInput">
+
+      <h4>Menu Items</h4>
+      <div id="menuAdmin"></div>
+      <button class="cta" onclick="addMenuItem()">+ Add New Item</button>
+
+      <label>Change Admin Password</label>
+      <input type="password" id="newPassInput" placeholder="Leave blank to keep old">
+      <button class="cta" id="saveBtn">Save Changes</button>
+      <button class="cta" style="background:#444;margin-top:10px;" id="logoutBtn">Logout</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const adminBtn=document.getElementById('adminBtn');
+  const adminModal=document.getElementById('adminModal');
+  const loginSection=document.querySelector('.login');
+  const dashboard=document.querySelector('.dashboard');
+  const loginBtn=document.getElementById('loginBtn');
+  const saveBtn=document.getElementById('saveBtn');
+  const logoutBtn=document.getElementById('logoutBtn');
+  const passInput=document.getElementById('adminPass');
+  const menuAdmin=document.getElementById('menuAdmin');
+  const menuGrid=document.getElementById('menuGrid');
+
+  let adminPassword=localStorage.getItem('adminPassword')||'admin123';
+
+  adminBtn.onclick=()=>adminModal.style.display='flex';
+  loginBtn.onclick=()=>{
+    if(passInput.value===adminPassword){
+      loginSection.style.display='none';
+      dashboard.style.display='block';
+      loadInputs();
+      loadMenuInputs();
+    } else {alert('Wrong Password');}
+  }
+  logoutBtn.onclick=()=>{
+    dashboard.style.display='none';
+    loginSection.style.display='block';
+    passInput.value='';
+    adminModal.style.display='none';
+  }
+
+  // Add Menu Item in Admin Panel
+  function addMenuItem(name='',price='',img=''){
+    const div=document.createElement('div');
+    div.style.border='1px solid #444';div.style.padding='10px';div.style.margin='10px 0';
+    div.innerHTML=`
+      <input type="text" placeholder="Item Name" value="${name}">
+      <input type="text" placeholder="Price" value="${price}">
+      <input type="file" accept="image/*" onchange="encodeImageFileAsURL(this)">
+      <img src="${img}" style="width:100%;margin-top:5px;display:${img?'block':'none'};">
+      <button onclick="this.parentElement.remove()" class="cta" style="background:#900;margin-top:5px;">Delete</button>
+    `;
+    menuAdmin.appendChild(div);
+  }
+
+  // Convert image to Base64
+  function encodeImageFileAsURL(input){
+    const file=input.files[0];
+    const reader=new FileReader();
+    reader.onloadend=function(){
+      const imgTag=input.nextElementSibling;
+      imgTag.src=reader.result;
+      imgTag.style.display='block';
+    }
+    reader.readAsDataURL(file);
+  }
+
+  saveBtn.onclick=()=>{
+    const siteName=document.getElementById('siteNameInput').value;
+    const phone=document.getElementById('phoneInput').value;
+    const address=document.getElementById('addressInput').value;
+
+    localStorage.setItem('siteName',siteName);
+    localStorage.setItem('phone',phone);
+    localStorage.setItem('address',address);
+
+    // Menu items
+    const items=[];
+    menuAdmin.querySelectorAll('div').forEach(div=>{
+      const inputs=div.querySelectorAll('input');
+      const imgTag=div.querySelector('img');
+      if(inputs[0].value && inputs[1].value){
+        items.push({name:inputs[0].value,price:inputs[1].value,img:imgTag.src||''});
+      }
+    });
+    localStorage.setItem('menu',JSON.stringify(items));
+
+    // Update live
+    updateWebsite();
+
+    // Change password
+    const newPass=document.getElementById('newPassInput').value;
+    if(newPass){
+      adminPassword=newPass;
+      localStorage.setItem('adminPassword',newPass);
+    }
+    alert('Changes Saved!');
+  }
+
+  function loadInputs(){
+    document.getElementById('siteNameInput').value=localStorage.getItem('siteName')||'Fiesta Pizza';
+    document.getElementById('phoneInput').value=localStorage.getItem('phone')||'03270553470';
+    document.getElementById('addressInput').value=localStorage.getItem('address')||'Your City';
+  }
+
+  function loadMenuInputs(){
+    menuAdmin.innerHTML='';
+    const items=JSON.parse(localStorage.getItem('menu')||'[]');
+    if(items.length){
+      items.forEach(item=>addMenuItem(item.name,item.price,item.img));
+    }
+  }
+
+  function updateWebsite(){
+    document.getElementById('websiteName').textContent=localStorage.getItem('siteName')||'Fiesta Pizza';
+    document.title=localStorage.getItem('siteName')||'Fiesta Pizza';
+    document.getElementById('phoneNo').textContent='📞 '+(localStorage.getItem('phone')||'03270553470');
+    document.getElementById('address').textContent='📍 '+(localStorage.getItem('address')||'Your City');
+
+    const menuItems=JSON.parse(localStorage.getItem('menu')||'[]');
+    menuGrid.innerHTML='';
+    menuItems.forEach(item=>{
+      const card=document.createElement('div');
+      card.className='menu-card';
+      card.innerHTML=`
+        <img src="${item.img||''}">
+        <h4>${item.name}</h4>
+        <p>${item.price}</p>
+      `;
+      menuGrid.appendChild(card);
+    });
+  }
+
+  function loadPage(){
+    updateWebsite();
+  }
+  loadPage();
+  document.getElementById('year').textContent=new Date().getFullYear();
+  window.onclick=e=>{if(e.target==adminModal)adminModal.style.display='none';};
+</script>
+</body>
+</html>
